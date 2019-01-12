@@ -54,11 +54,11 @@ int USER_Timestamp[MAXPLAYERS][TimerClass];
 int USER_Weapons[MAXPLAYERS][WeaponCheckTypes];
 
 // Additional Scripts
-#include "Database.sp" // Init, Save, Load
-#include "ControlPoints.sp" // Might remove this into another script
-#include "Timers.sp" // Mostly for showing the timer and timer information to client
-#include "Information.sp" // Command responses for Information
-#include "Toolbelt.sp" // Collection of methods that dont fit in elsewhere
+#include "_Database.sp" // Init, Save, Load
+#include "_ControlPoints.sp" // Might remove this into another script
+#include "_Timers.sp" // Mostly for showing the timer and timer information to client
+#include "_Information.sp" // Command responses for Information
+#include "_Toolbelt.sp" // Collection of methods that dont fit in elsewhere
 
 public Plugin myinfo = 
 {
