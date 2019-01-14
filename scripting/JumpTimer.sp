@@ -184,7 +184,6 @@ public OnMapEnd()
 		{
 			USER_HasTouchedCP[i][j] = false;
 		}
-		
 		ClearClientTimeData(i);
 	}
 	isCPsLoaded = false;
@@ -229,7 +228,13 @@ public Action Event_InvApplication(Handle event, char[] name, bool dontBroadcast
 		{
 			for (int Slot = 0; Slot < WeaponCheckCount; Slot++)
 			{
-				wepIndex = GetEntProp(GetPlayerWeaponSlot(client, Slot), Prop_Send, "m_iItemDefinitionIndex");
+				int EntIndex = GetPlayerWeaponSlot(client, Slot);
+				//TODO Look into this a bit more
+				// Who knows if this is right, Why would it return nothing? No weapon? Wearable purhaps?
+				if (!IsValidEntity(EntIndex))
+					return Plugin_Continue;
+				
+				wepIndex = GetEntProp(EntIndex, Prop_Send, "m_iItemDefinitionIndex");
 				
 				if (USER_Weapons[client][Slot] != wepIndex)
 				{
@@ -305,8 +310,10 @@ public Action Event_PlayerChangeClass(Event event, const char[] name, bool dontB
 	if (class == oldclass)
 		return Plugin_Continue;
 	else
+	{
+		USER_StartTime[client] = -1.0;
 		CreateTimer(0.01, Timer_ResetTime, client);
-	
+	}
 	return Plugin_Continue;
 }
 
@@ -324,6 +331,7 @@ public OnClientPostAdminCheck(client)
 		USER_FinishTime[client] = -1.0;
 		// Better Safe then sorry
 		ResetTime(client);
+		ClearUserWeps(client);
 		
 		GetClientName(client, USER_Name[client], MAX_PLAYER_NAME_LENGTH);
 		SQL_EscapeString(MainDatabase, USER_Name[client], USER_Name[client], sizeof(USER_Name[]));
