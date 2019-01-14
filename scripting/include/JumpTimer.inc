@@ -44,6 +44,6 @@ enum WeaponCheckTypes
 
 /**
  * Called when a Plugin wants JumpTimer to do Failure Checks,
- * If Check is false, no checks are made, instantly fails using EFailureType.
+ * No checks are made, and failure is assumed using EFailureType for message if no Message is provided.
  */
-forward CheckFailure(int client, EFailureType:reason, bool Check = true);
+forward CheckFailure(int client, EFailureType reason, const char[] Message, int MsgLength);
