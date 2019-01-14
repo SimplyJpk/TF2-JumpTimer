@@ -10,12 +10,14 @@ bool LateLoading = true;
 #define MAX_PLAYER_NAME_LENGTH 32
 
 // My Include
-#include <JumpTimer> 
+#include "JumpTimer" 
 
 #include <sourcemod>
 #include <morecolors>
 #include <sdktools>
 #include <tf2_stocks>
+// Used for Resetting
+#include <sdkhooks>
 
 // Variables that are needed by more than one Script
 char GlobalQueryChar[400];
@@ -59,6 +61,7 @@ int USER_Weapons[MAXPLAYERS][WeaponCheckTypes];
 #include "_Timers.sp" // Mostly for showing the timer and timer information to client
 #include "_Information.sp" // Command responses for Information
 #include "_Toolbelt.sp" // Collection of methods that dont fit in elsewhere
+#include "_FailCheck.sp" // 
 
 public Plugin myinfo = 
 {
@@ -82,12 +85,16 @@ public void OnPluginStart()
 	
 	HookEvent("player_changeclass", Event_PlayerChangeClass, EventHookMode_Pre);
 	HookEvent("player_death", Event_OnPlayerDeath, EventHookMode_Post);
-	// When INV Changes (Rules)
+	// When INV Changes
 	HookEvent("post_inventory_application", Event_InvApplication, EventHookMode_Post);
 	
 	HookEvent("player_teleported", Event_ClientTeleported, EventHookMode_Pre);
 	
 	LockMapControlPoints();
+	
+	RegConsoleCmd("sm_r", Command_ResetTime);
+	RegConsoleCmd("sm_restart", Command_ResetTime);
+	RegConsoleCmd("sm_timeme", Command_ResetTime);
 	
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -99,6 +106,40 @@ public void OnPluginStart()
 	LateLoading = false;
 	
 	RegisterInfomationCommands(); // Information.sp 
+	
+	AddCommandListener(SimpleCheatEnd, "sm_t");
+	AddCommandListener(SimpleCheatEnd, "sm_tele");
+	AddCommandListener(SimpleCheatEnd, "sm_teleport");
+}
+
+public Action Command_ResetTime(int client, int args)
+{
+	if (IsClientInGame(client) && IsPlayerAlive(client))
+	{
+		SDKHooks_TakeDamage(client, client, client, 9999.0);
+		PrintToConsole(client, "%s Timer Reset.", NoColourChatTag);
+		return Plugin_Handled;
+	}
+	CPrintToChat(client, "%s Must be alive to reset!", ChatTag);
+	return Plugin_Handled;
+}
+
+
+// Used to Detect cheating until I implement the forward into the Teleport plugin
+public Action SimpleCheatEnd(int client, const char[] command, int args)
+{  // If something that may be cheatable is used
+	if (IsClientInGame(client))
+	{
+		if (USER_StartTime[client] > 0)
+		{
+			CPrintToChat(client, "%s Used Teleport. {RED}Timer Disabled!", ChatTag);
+			USER_StartTime[client] = -1.0;
+			
+			#if (IsLogging)
+			PrintToConsoleAll("[JT] Cheat | Client #%i used Teleport!", GetClientUserId(client));
+			#endif
+		}
+	}
 }
 
 public OnConfigsExecuted()
@@ -134,7 +175,7 @@ public OnMapStart()
 
 public OnMapEnd()
 {
-	for (int i = 0; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		USER_NormalCPsTouched[i] = 0;
 		USER_StartTime[i] = -1.0;
@@ -156,6 +197,11 @@ public Action Event_OnPlayerDeath(Handle event, char[] name, bool dontBroadcast)
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (client > 0 && client <= MaxClients)
 	{
+		if (!IsClassTimerEnabled(TF2_GetPlayerClass(client)))
+		{
+			USER_StartTime[client] = -1.0;
+			return Plugin_Continue;
+		}
 		ResetTime(client);
 		if (TF2_GetPlayerClass(client) == TFClass_Engineer)
 			DestroyBuildings(client);
@@ -250,6 +296,12 @@ public Action Event_PlayerChangeClass(Event event, const char[] name, bool dontB
 	TFClassType class = view_as<TFClassType>(GetEventInt(event, "class"));
 	TFClassType oldclass = TF2_GetPlayerClass(client);
 	
+	if (!IsClassTimerEnabled(class))
+	{
+		USER_StartTime[client] = -1.0;
+		return Plugin_Continue;
+	}
+	
 	if (class == oldclass)
 		return Plugin_Continue;
 	else
@@ -285,12 +337,19 @@ void ResetTime(int client)
 		if (!LateLoading)
 			USER_StartTime[client] = GetEngineTime();
 		
-		StoreUserWeapons(client);
+		// 1th a second, is this too long? is the Minimum SM can do, may need OnGameFrame
+		CreateTimer(0.01, Timer_StoreWep, client);
 		
 		#if (IsLogging)
 		PrintToConsoleAll("[JT] Reset Time | Client #%i time Reset", GetClientUserId(client));
 		#endif
 	}
+}
+
+public Action Timer_StoreWep(Handle timer, int client)
+{
+	if (IsClientInGame(client))
+		StoreUserWeapons(client);
 }
 
 void StoreUserWeapons(int client)
@@ -453,7 +512,7 @@ int TFClassAsArrayIndex(TFClassType class)
 
 void ClearClientTimeData(int client)
 {
-	for (int i = 0; i < CLASS_COUNT; i++)
+	for (int i = 1; i < CLASS_COUNT; i++)
 	{
 		USER_RecordedTime[client][i] = -1.0;
 		USER_Timestamp[client][i] = -1;
@@ -569,7 +628,7 @@ int UserPositionInTimes(int client, int class)
 // Put this in a seperate script, toolbelt?
 int GetPositionInTimes(float time, int class)
 {
-	for (int i = 0; i < MAX_LOCAL_RECORDS; i++)
+	for (int i = 1; i < MAX_LOCAL_RECORDS; i++)
 	{
 		if (SQL_Time[class][i] <= 0 || SQL_Time[class][i] > time)
 			return i;
