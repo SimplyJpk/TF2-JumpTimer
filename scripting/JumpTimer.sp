@@ -305,10 +305,17 @@ public Action Event_PlayerChangeClass(Event event, const char[] name, bool dontB
 	if (class == oldclass)
 		return Plugin_Continue;
 	else
-		ResetTime(client);
+		CreateTimer(0.01, Timer_ResetTime, client);
 	
 	return Plugin_Continue;
 }
+
+public Action Timer_ResetTime(Handle timer, int client)
+{
+	if (IsClientInGame(client))
+		ResetTime(client);
+}
+
 
 public OnClientPostAdminCheck(client)
 {
