@@ -238,6 +238,9 @@ public Action Event_InvApplication(Handle event, char[] name, bool dontBroadcast
 				
 				if (USER_Weapons[client][Slot] != wepIndex)
 				{
+					if (Slot == view_as<int>(SlotSecondary) && TF2_GetPlayerClass(client) == view_as<TFClassType>(PYRO))
+						continue;
+					
 					USER_StartTime[client] = -1.0;
 					CPrintToChat(client, "%s Your %s Weapon changed. {RED}Timer Disabled!", ChatTag, WeaponCheckNames[Slot]);
 					
@@ -290,7 +293,36 @@ bool IsBannedWeapon(int Slot, int WeaponIndex)
 public Action Event_PlayerJoinedTeam(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
-	ResetTime(client);
+	
+	int oTeam = event.GetInt("oldteam");
+	int nTeam = event.GetInt("team");
+	
+	if (nTeam != view_as<int>(TFTeam_Spectator) && oTeam == view_as<int>(TFTeam_Spectator))
+	{
+		if (USER_StartTime[client] > 0.0)
+		{
+			USER_StartTime[client] = -1.0;
+		}
+	}
+	else if (nTeam == view_as<int>(TFTeam_Spectator))
+	{
+		if (USER_StartTime[client] > 0.0)
+		{
+			USER_StartTime[client] = -1.0;
+			CPrintToChat(client, "%s Team changed to Spectator. {RED}Timer Disabled!", ChatTag);
+		}
+	}
+	else
+	{
+		ResetTime(client);
+	}
+	// short	userid	user ID on the server
+	// byte	team	team id
+	// byte	oldteam	old team id
+	// bool	disconnect	team change because player disconnects
+	// bool	autoteam	true if the player was auto assigned to the team (OB only)
+	// bool	silent	if true wont print the team join messages (OB only)
+	// string	name	player's name (OB only)
 	return Plugin_Continue;
 }
 
@@ -301,26 +333,13 @@ public Action Event_PlayerChangeClass(Event event, const char[] name, bool dontB
 	TFClassType class = view_as<TFClassType>(GetEventInt(event, "class"));
 	TFClassType oldclass = TF2_GetPlayerClass(client);
 	
-	if (!IsClassTimerEnabled(class))
-	{
-		USER_StartTime[client] = -1.0;
-		return Plugin_Continue;
-	}
-	
 	if (class == oldclass)
 		return Plugin_Continue;
 	else
 	{
-		USER_StartTime[client] = -1.0;
-		CreateTimer(0.01, Timer_ResetTime, client);
+		SDKHooks_TakeDamage(client, client, client, 9999.0);
 	}
 	return Plugin_Continue;
-}
-
-public Action Timer_ResetTime(Handle timer, int client)
-{
-	if (IsClientInGame(client))
-		ResetTime(client);
 }
 
 
@@ -527,7 +546,7 @@ int TFClassAsArrayIndex(TFClassType class)
 
 void ClearClientTimeData(int client)
 {
-	for (int i = 1; i < CLASS_COUNT; i++)
+	for (int i = 0; i < CLASS_COUNT; i++)
 	{
 		USER_RecordedTime[client][i] = -1.0;
 		USER_Timestamp[client][i] = -1;
@@ -643,7 +662,7 @@ int UserPositionInTimes(int client, int class)
 // Put this in a seperate script, toolbelt?
 int GetPositionInTimes(float time, int class)
 {
-	for (int i = 1; i < MAX_LOCAL_RECORDS; i++)
+	for (int i = 0; i < MAX_LOCAL_RECORDS; i++)
 	{
 		if (SQL_Time[class][i] <= 0 || SQL_Time[class][i] > time)
 			return i;
