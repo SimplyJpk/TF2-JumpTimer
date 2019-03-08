@@ -42,3 +42,11 @@ void DestroyBuildings(client)
 	if (_destroyed)
 		CPrintToChat(client, "%s {RED} Buildings Destroyed.", ChatTag);
 } 
+
+void ClearUserWeps(int client)
+{
+	for (int i = 0; i < WeaponCheckCount; i++)
+	{
+		USER_Weapons[client][i] = -1;
+	}
+}
